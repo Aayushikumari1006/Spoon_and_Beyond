@@ -321,28 +321,11 @@ Spoon & Beyond integrates RecipeDB from Foodoscope as its recipe-data source.
 
 ### How the Data Flows
 
-```mermaid
-flowchart LR
-    A["🧺 Selected Ingredients"]
-    B["⚙️ Application Logic"]
-    C["🔌 RecipeDB API"]
-    D["📦 Recipe Data"]
-    E["🍝 Matching Results"]
-    F["👩‍🍳 Cooking Experience"]
+<div align="center">
 
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    E --> F
+![Spoon & Beyond Data Flow](screenshots/data-flow.png)
 
-    style A fill:#3D174F,stroke:#FF6BD6,color:#FFFFFF
-    style B fill:#191D38,stroke:#8B5CF6,color:#FFFFFF
-    style C fill:#103C48,stroke:#22D3EE,color:#FFFFFF
-    style D fill:#191D38,stroke:#8B5CF6,color:#FFFFFF
-    style E fill:#3D174F,stroke:#FF6BD6,color:#FFFFFF
-    style F fill:#123D32,stroke:#34D399,color:#FFFFFF
-```
+</div>
 
 ### Technology Stack
 
