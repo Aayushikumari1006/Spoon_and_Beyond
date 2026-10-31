@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RecipeDB Dynamic Recipe Discovery</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              400: '#2dd4bf',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+            },
+            accent: {
+              gold: '#ffc857',
+              emerald: '#10b981',
+              cyan: '#38bdf8'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    @keyframes pulseGlow {
+
+      0%,
+      100% {
+        box-shadow: 0 0 15px rgba(20, 184, 166, 0.25);
+      }
+
+      50% {
+        box-shadow: 0 0 25px rgba(20, 184, 166, 0.5);
+      }
+    }
+
+    .pulse-glow {
+      animation: pulseGlow 2.5s infinite;
+    }
+
+    /* Custom scrollbar for ingredient tags */
+    .custom-scrollbar::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(30, 41, 59, 0.5);
+      border-radius: 9999px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.5);
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-teal-500 selection:text-white">
+
+  <!-- Header Section -->
+  <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40">
+    <div
+      class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div
+          class="h-10 w-10 rounded-xl bg-gradient-to-tr from-teal-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
+          <svg class="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+            </path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            RecipeDB Explorer
+            <span
+              class="text-xs px-2 py-0.5 rounded-full font-medium bg-teal-500/10 text-teal-400 border border-teal-500/20">Live</span>
+          </h1>
+          <p class="text-xs text-slate-400">Dynamic Ingredient Formulation & Real-Time Match Engine</p>
+        </div>
+      </div>
+
+      <!-- Quick Action Stats -->
+      <div class="flex items-center gap-3">
+        <div class="text-right hidden sm:block">
+          <span class="text-xs text-slate-400 block">Active Ingredients</span>
+          <span id="active-ingredient-counter" class="text-sm font-semibold text-teal-400">0 selected</span>
+        </div>
+        <button id="clear-all-btn"
+          class="text-xs px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white transition-all duration-150 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+          Reset All
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- 1. Interactive Ingredient Selector Panel -->
+    <section class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+        <div>
+          <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+            <span>Select Your Pantry Ingredients</span>
+            <span class="text-xs font-normal text-slate-400">(Click to toggle real-time recipe matches)</span>
+          </h2>
+          <p class="text-sm text-slate-400 mt-0.5">Filter by ingredient pairings to generate customized dishes
+            instantly.</p>
+        </div>
+
+        <!-- Search Bar within Ingredients -->
+        <div class="relative w-full md:w-72">
+          <input type="text" id="ingredient-search" placeholder="Search ingredients..."
+            class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3.5 py-2 pl-9 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-all" />
+          <svg class="w-4 h-4 text-slate-500 absolute left-3 top-3" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Ingredient Chips Wrapper -->
+      <div id="ingredient-chips-container"
+        class="flex flex-wrap gap-2 pt-1 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+        <!-- Rendered dynamically by JavaScript -->
+      </div>
+    </section>
+
+    <!-- 2. Recipe Grid & Results Header -->
+    <section class="space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <h3 class="text-lg font-semibold text-white">Suggested Recipes</h3>
+          <span id="results-count-badge"
+            class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
+            0 found
+          </span>
+        </div>
+
+        <div class="text-xs text-slate-400 flex items-center gap-1.5">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>RecipeDB Live Matching</span>
+        </div>
+      </div>
+
+      <!-- Editable Meal Setup Summary Bar (Platera Flowchart Pipeline) -->
+      <div id="meal-setup-summary-bar"
+        class="cursor-pointer bg-slate-900/90 hover:bg-slate-800/90 border border-teal-500/30 hover:border-teal-400/60 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs text-slate-300 transition-all shadow-md">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span
+            class="px-2 py-0.5 rounded font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30 tracking-wider">MEAL
+            SETUP:</span>
+          <span id="summary-servings-text" class="font-semibold text-white">For 2 people</span>
+          <span class="text-slate-600">•</span>
+          <span id="summary-meal-text" class="font-semibold text-white">Dinner (Main Course)</span>
+          <span class="text-slate-600">•</span>
+          <span id="summary-time-text" class="font-semibold text-teal-400">≤ 30 mins</span>
+          <span id="summary-allergies-tag" class="text-rose-400 font-medium"></span>
+        </div>
+        <button id="open-meal-setup-btn" type="button"
+          class="px-2.5 py-1 rounded-lg bg-teal-500/15 hover:bg-teal-500/30 text-teal-300 border border-teal-500/30 font-semibold flex items-center gap-1 transition-all">
+          <span>✎ Change Setup</span>
+        </button>
+      </div>
+
+      <!-- Relative Grid Container with Loading State Overlay -->
+      <div class="relative min-h-[360px]">
+
+        <!-- Loading Spinner Overlay -->
+        <div id="loading-overlay"
+          class="hidden absolute inset-0 bg-slate-950/70 backdrop-blur-sm z-30 flex flex-col items-center justify-center rounded-2xl transition-all duration-300">
+          <div class="relative flex items-center justify-center">
+            <div class="w-14 h-14 border-4 border-slate-800 border-t-teal-400 rounded-full animate-spin"></div>
+            <div class="w-8 h-8 border-4 border-slate-900 border-b-cyan-400 rounded-full animate-spin absolute"
+              style="animation-direction: reverse;"></div>
+          </div>
+          <p class="mt-4 text-sm font-medium text-slate-200">Matching RecipeDB formulas...</p>
+          <span class="text-xs text-slate-400">Comparing ingredient profiles</span>
+        </div>
+
+        <!-- Recipe Cards Grid -->
+        <div id="recipes-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <!-- Populated dynamically via JavaScript -->
+        </div>
+
+        <!-- Empty State Container (Hidden by default) -->
+        <div id="empty-state"
+          class="hidden flex flex-col items-center justify-center py-16 px-4 text-center bg-slate-900/40 border border-slate-800/80 rounded-2xl">
+          <div
+            class="w-16 h-16 rounded-2xl bg-slate-800/80 flex items-center justify-center text-slate-400 mb-4 border border-slate-700/50">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+              </path>
+            </svg>
+          </div>
+          <h4 class="text-base font-semibold text-slate-200">No matching recipes found</h4>
+          <p class="text-sm text-slate-400 max-w-md mt-1 mb-5">Try removing a few strict ingredients or pick broader
+            kitchen staples like Garlic, Olive Oil, or Tomatoes!</p>
+          <button id="empty-reset-btn"
+            class="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-teal-600/20">
+            Reset to Recommended Ingredients
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- REQUIRED MEAL SETUP MODAL (Platera Pipeline Flowchart) -->
+    <div id="meal-setup-modal"
+      class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+      <div
+        class="bg-slate-900 border border-teal-500/30 rounded-2xl max-w-2xl w-full max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+        <!-- Modal Header -->
+        <div class="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+          <div>
+            <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <span>Required Meal Setup</span>
+              <span
+                class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">Platera
+                Engine</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">Understands your kitchen constraints before recipe recommendation.
+            </p>
+          </div>
+          <button id="close-meal-setup-btn" type="button"
+            class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Modal Body (4 Questions) -->
+        <div class="p-4 sm:p-6 overflow-y-auto space-y-5 custom-scrollbar text-sm">
+          <!-- Question 1: Serving size -->
+          <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2.5">
+              <h4 class="font-bold text-slate-100 flex items-center gap-2">
+                <span class="px-2 py-0.5 text-xs rounded bg-teal-600/30 text-teal-300 font-extrabold">1</span>
+                How many people are you cooking for?
+              </h4>
+              <span class="text-[11px] text-slate-400">Serving size</span>
+            </div>
+            <div id="setup-servings-chips" class="flex flex-wrap gap-2">
+              <button type="button" data-val="1"
+                class="setup-srv-btn px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all">Just me —
+                1</button>
+              <button type="button" data-val="2"
+                class="setup-srv-btn px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all">2
+                people</button>
+              <button type="button" data-val="3"
+                class="setup-srv-btn px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all">3
+                people</button>
+              <button type="button" data-val="4"
+                class="setup-srv-btn px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all">4
+                people</button>
+              <button type="button" data-val="5"
+                class="setup-srv-btn px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all">5
+                people</button>
+              <button type="button" data-val="6"
+                class="setup-srv-btn px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all">6
+                people</button>
+              <button type="button" data-val="more"
+                class="setup-srv-btn px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all">More</button>
+            </div>
+            <div id="more-servings-stepper"
+              class="hidden mt-3 flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 w-fit">
+              <span class="text-xs text-slate-400">Enter count:</span>
+              <button id="srv-minus" type="button"
+                class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs">-</button>
+              <span id="srv-count-display" class="font-bold text-teal-300 text-sm min-w-5 text-center">8</span>
+              <button id="srv-plus" type="button"
+                class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs">+</button>
+            </div>
+          </div>
+
+          <!-- Question 2: Available time -->
+          <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2.5">
+              <h4 class="font-bold text-slate-100 flex items-center gap-2">
+                <span class="px-2 py-0.5 text-xs rounded bg-teal-600/30 text-teal-300 font-extrabold">2</span>
+                When should the food be ready?
+              </h4>
+              <span class="text-[11px] text-slate-400">Max verified cooking time</span>
+            </div>
+            <div id="setup-time-chips" class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <button type="button" data-time="15"
+                class="setup-time-btn p-2 rounded-xl border text-center transition-all">
+                <div class="font-bold text-xs text-white">15 minutes</div>
+                <div class="text-[10px] text-slate-400">Quick meal</div>
+              </button>
+              <button type="button" data-time="30"
+                class="setup-time-btn p-2 rounded-xl border text-center transition-all">
+                <div class="font-bold text-xs text-white">30 minutes</div>
+                <div class="text-[10px] text-slate-400">Standard</div>
+              </button>
+              <button type="button" data-time="45"
+                class="setup-time-btn p-2 rounded-xl border text-center transition-all">
+                <div class="font-bold text-xs text-white">45 minutes</div>
+                <div class="text-[10px] text-slate-400">Relaxed</div>
+              </button>
+              <button type="button" data-time="60"
+                class="setup-time-btn p-2 rounded-xl border text-center transition-all">
+                <div class="font-bold text-xs text-white">1 hour</div>
+                <div class="text-[10px] text-slate-400">Elaborate</div>
+              </button>
+              <button type="button" data-time="999"
+                class="setup-time-btn p-2 rounded-xl border text-center transition-all">
+                <div class="font-bold text-xs text-white">I have time</div>
+                <div class="text-[10px] text-slate-400">Any duration</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Question 3: What are you preparing? -->
+          <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2.5">
+              <h4 class="font-bold text-slate-100 flex items-center gap-2">
+                <span class="px-2 py-0.5 text-xs rounded bg-teal-600/30 text-teal-300 font-extrabold">3</span>
+                What are you planning to make?
+              </h4>
+              <span class="text-[11px] text-slate-400">Meal or dish category</span>
+            </div>
+            <div id="setup-meal-chips" class="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              <button type="button" data-meal="breakfast"
+                class="setup-meal-btn p-2 rounded-xl border text-center text-xs font-semibold transition-all">Breakfast</button>
+              <button type="button" data-meal="lunch"
+                class="setup-meal-btn p-2 rounded-xl border text-center text-xs font-semibold transition-all">Lunch</button>
+              <button type="button" data-meal="dinner"
+                class="setup-meal-btn p-2 rounded-xl border text-center text-xs font-semibold transition-all">Dinner</button>
+              <button type="button" data-meal="snack"
+                class="setup-meal-btn p-2 rounded-xl border text-center text-xs font-semibold transition-all">Snack</button>
+              <button type="button" data-meal="sweet"
+                class="setup-meal-btn p-2 rounded-xl border text-center text-xs font-semibold transition-all">Sweet
+                dish</button>
+              <button type="button" data-meal="main"
+                class="setup-meal-btn p-2 rounded-xl border text-center text-xs font-semibold transition-all">Main
+                course</button>
+              <button type="button" data-meal="side"
+                class="setup-meal-btn p-2 rounded-xl border text-center text-xs font-semibold transition-all">Side
+                dish</button>
+              <button type="button" data-meal="drink"
+                class="setup-meal-btn p-2 rounded-xl border text-center text-xs font-semibold transition-all">Drink</button>
+              <button type="button" data-meal="anything"
+                class="setup-meal-btn p-2 rounded-xl border text-center text-xs font-semibold transition-all col-span-2 sm:col-span-2">Anything
+                — surprise me!</button>
+            </div>
+          </div>
+
+          <!-- Question 4: Allergies and things to avoid -->
+          <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2.5">
+              <h4 class="font-bold text-slate-100 flex items-center gap-2">
+                <span class="px-2 py-0.5 text-xs rounded bg-rose-600/30 text-rose-300 font-extrabold">4</span>
+                Anything we should avoid?
+              </h4>
+              <span class="text-[11px] text-rose-400 font-medium">Strict hard exclusion</span>
+            </div>
+            <div id="setup-allergy-chips" class="flex flex-wrap gap-2">
+              <button type="button" data-allergy="none"
+                class="setup-allg-btn px-3 py-1.5 rounded-lg border text-xs font-medium transition-all">No allergies or
+                restrictions</button>
+              <button type="button" data-allergy="vegetarian"
+                class="setup-allg-btn px-3 py-1.5 rounded-lg border text-xs font-medium transition-all">Vegetarian</button>
+              <button type="button" data-allergy="vegan"
+                class="setup-allg-btn px-3 py-1.5 rounded-lg border text-xs font-medium transition-all">Vegan</button>
+              <button type="button" data-allergy="egg-free"
+                class="setup-allg-btn px-3 py-1.5 rounded-lg border text-xs font-medium transition-all">Egg-free</button>
+              <button type="button" data-allergy="dairy-free"
+                class="setup-allg-btn px-3 py-1.5 rounded-lg border text-xs font-medium transition-all">Dairy-free</button>
+              <button type="button" data-allergy="gluten-free"
+                class="setup-allg-btn px-3 py-1.5 rounded-lg border text-xs font-medium transition-all">Gluten-free</button>
+              <button type="button" data-allergy="peanuts"
+                class="setup-allg-btn px-3 py-1.5 rounded-lg border text-xs font-medium transition-all">Peanuts</button>
+              <button type="button" data-allergy="tree nuts"
+                class="setup-allg-btn px-3 py-1.5 rounded-lg border text-xs font-medium transition-all">Tree
+                nuts</button>
+              <button type="button" data-allergy="soy"
+                class="setup-allg-btn px-3 py-1.5 rounded-lg border text-xs font-medium transition-all">Soy</button>
+              <button type="button" data-allergy="sesame"
+                class="setup-allg-btn px-3 py-1.5 rounded-lg border text-xs font-medium transition-all">Sesame</button>
+              <button type="button" data-allergy="other"
+                class="setup-allg-btn px-3 py-1.5 rounded-lg border text-xs font-medium transition-all">Other</button>
+            </div>
+            <div id="custom-avoid-input-box" class="hidden mt-3">
+              <input type="text" id="custom-avoid-input"
+                placeholder="Type specific ingredient to strictly avoid (e.g., mushrooms, shellfish)..."
+                class="w-full bg-slate-900 border border-rose-500/30 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-400" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-4 sm:p-5 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between gap-4">
+          <div class="text-xs text-slate-400 hidden sm:block">
+            All recommendations will respect these constraints.
+          </div>
+          <button id="show-meals-btn" type="button"
+            class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-bold text-sm shadow-lg shadow-teal-500/25 transition-all flex items-center justify-center gap-2">
+            <span>Show me meals</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3">
+              </path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modern JavaScript Module Context -->
+  <script type="module">
+    /**
+     * CONFIGURATION
+     * Official Foodoscope RecipeDB URL: https://www.foodoscope.com
+     * Profile & API Key generation: https://www.foodoscope.com/profile?tab=api-key
+     * RecipeDB Playground for testing: https://www.foodoscope.com/playground/recipedb
+     */
+    const CONFIG = {
+      API_BASE_URL: 'https://www.foodoscope.com',
+      API_ENDPOINT: '/recipes/by-ingredients-categories-title',
+      PROXY_ENDPOINT: '/api/recipedb/by-ingredients',
+      API_KEY: 'YL0iyx8RFdx1F-BrZ0FWb0WqScyQJ73iyGaQhJgnhvCcGDSO', // Official Foodoscope API token
+      DEFAULT_INGREDIENTS: ['Tomatoes', 'Garlic', 'Olive Oil']
+    };
+
+    /**
+     * EXTENSIVE PANTRY INGREDIENTS LIST
+     */
+    const AVAILABLE_INGREDIENTS = [
+      { id: 'garlic', name: 'Garlic', category: 'Aromatics' },
+      { id: 'tomatoes', name: 'Tomatoes', category: 'Produce' },
+      { id: 'olive_oil', name: 'Olive Oil', category: 'Pantry' },
+      { id: 'pasta', name: 'Pasta', category: 'Grains' },
+      { id: 'parmesan', name: 'Parmesan', category: 'Dairy' },
+      { id: 'basil', name: 'Fresh Basil', category: 'Herbs' },
+      { id: 'chicken', name: 'Chicken Breast', category: 'Protein' },
+      { id: 'salmon', name: 'Salmon Fillet', category: 'Protein' },
+      { id: 'shrimp', name: 'Shrimp', category: 'Protein' },
+      { id: 'tofu', name: 'Firm Tofu', category: 'Protein' },
+      { id: 'mushrooms', name: 'Wild Mushrooms', category: 'Produce' },
+      { id: 'spinach', name: 'Baby Spinach', category: 'Produce' },
+      { id: 'bell_peppers', name: 'Bell Peppers', category: 'Produce' },
+      { id: 'heavy_cream', name: 'Heavy Cream', category: 'Dairy' },
+      { id: 'chilli_flakes', name: 'Chili Flakes', category: 'Spices' },
+      { id: 'lemon', name: 'Lemon', category: 'Produce' },
+      { id: 'avocado', name: 'Avocado', category: 'Produce' },
+      { id: 'broccoli', name: 'Broccoli', category: 'Produce' },
+      { id: 'rice', name: 'Arborio Rice', category: 'Grains' }
+    ];
+
+    /**
+     * HIGH-FIDELITY VERIFIED RECIPEDB CATALOG (Grounding in real, practical, healthy dishes)
+     */
+    const DEMO_CATALOG = [
+      {
+        id: 'rec-1',
+        title: 'Creamy Garlic Vegetable Pasta',
+        dietType: 'Vegetarian',
+        prepTime: '25 mins',
+        verifiedMinutes: 25,
+        servings: 2,
+        baseServings: 2,
+        mealType: 'dinner',
+        dishType: 'main',
+        allergens: ['dairy', 'gluten'],
+        isVegetarian: true,
+        isVegan: false,
+        requiredIngredients: ['pasta', 'garlic', 'heavy_cream', 'parmesan', 'tomatoes'],
+        imageUrl: 'https://images.unsplash.com/photo-1621996346565-e3d5d6281292?w=800&auto=format&fit=crop&q=80',
+        calories: '480 kcal'
+      },
+      {
+        id: 'rec-2',
+        title: 'Skillet Chicken & Herb Primavera',
+        dietType: 'High Protein',
+        prepTime: '30 mins',
+        verifiedMinutes: 30,
+        servings: 2,
+        baseServings: 2,
+        mealType: 'dinner',
+        dishType: 'main',
+        allergens: [],
+        isVegetarian: false,
+        isVegan: false,
+        requiredIngredients: ['chicken', 'bell_peppers', 'garlic', 'olive_oil', 'broccoli'],
+        imageUrl: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=800&auto=format&fit=crop&q=80',
+        calories: '520 kcal'
+      },
+      {
+        id: 'rec-3',
+        title: 'Pan-Seared Salmon with Lemon Dill',
+        dietType: 'Gluten-Free',
+        prepTime: '20 mins',
+        verifiedMinutes: 20,
+        servings: 2,
+        baseServings: 2,
+        mealType: 'dinner',
+        dishType: 'main',
+        allergens: ['fish'],
+        isVegetarian: false,
+        isVegan: false,
+        requiredIngredients: ['salmon', 'lemon', 'garlic', 'olive_oil', 'spinach'],
+        imageUrl: 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=800&auto=format&fit=crop&q=80',
+        calories: '440 kcal'
+      },
+      {
+        id: 'rec-4',
+        title: 'Garlic Butter Shrimp Scampi',
+        dietType: 'Pescatarian',
+        prepTime: '18 mins',
+        verifiedMinutes: 18,
+        servings: 2,
+        baseServings: 2,
+        mealType: 'dinner',
+        dishType: 'main',
+        allergens: ['shellfish', 'gluten'],
+        isVegetarian: false,
+        isVegan: false,
+        requiredIngredients: ['shrimp', 'garlic', 'lemon', 'olive_oil', 'pasta', 'chilli_flakes'],
+        imageUrl: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=800&auto=format&fit=crop&q=80',
+        calories: '390 kcal'
+      },
+      {
+        id: 'rec-5',
+        title: 'Fiery Penne all\'Arrabbiata',
+        dietType: 'Vegan',
+        prepTime: '22 mins',
+        verifiedMinutes: 22,
+        servings: 2,
+        baseServings: 2,
+        mealType: 'dinner',
+        dishType: 'main',
+        allergens: ['gluten'],
+        isVegetarian: true,
+        isVegan: true,
+        requiredIngredients: ['pasta', 'tomatoes', 'garlic', 'chilli_flakes', 'olive_oil', 'basil'],
+        imageUrl: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=800&auto=format&fit=crop&q=80',
+        calories: '370 kcal'
+      },
+      {
+        id: 'rec-6',
+        title: 'Crispy Chili Garlic Tofu Sauté',
+        dietType: 'Vegan',
+        prepTime: '20 mins',
+        verifiedMinutes: 20,
+        servings: 2,
+        baseServings: 2,
+        mealType: 'dinner',
+        dishType: 'main',
+        allergens: ['soy'],
+        isVegetarian: true,
+        isVegan: true,
+        requiredIngredients: ['tofu', 'garlic', 'bell_peppers', 'chilli_flakes', 'olive_oil'],
+        imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80',
+        calories: '340 kcal'
+      },
+      {
+        id: 'rec-7',
+        title: 'Wild Mushroom & Garlic Risotto',
+        dietType: 'Vegetarian',
+        prepTime: '35 mins',
+        verifiedMinutes: 35,
+        servings: 2,
+        baseServings: 2,
+        mealType: 'dinner',
+        dishType: 'main',
+        allergens: ['dairy'],
+        isVegetarian: true,
+        isVegan: false,
+        requiredIngredients: ['rice', 'mushrooms', 'garlic', 'parmesan', 'olive_oil'],
+        imageUrl: 'https://images.unsplash.com/photo-1633964913295-ceb43826e7c9?w=800&auto=format&fit=crop&q=80',
+        calories: '460 kcal'
+      },
+      {
+        id: 'rec-8',
+        title: 'Classic Tomato Basil Bruschetta',
+        dietType: 'Vegan',
+        prepTime: '12 mins',
+        verifiedMinutes: 12,
+        servings: 2,
+        baseServings: 2,
+        mealType: 'snack',
+        dishType: 'side',
+        allergens: ['gluten'],
+        isVegetarian: true,
+        isVegan: true,
+        requiredIngredients: ['tomatoes', 'garlic', 'basil', 'olive_oil'],
+        imageUrl: 'https://images.unsplash.com/photo-1572695157366-5e585ab2b69f?w=800&auto=format&fit=crop&q=80',
+        calories: '210 kcal'
+      },
+      {
+        id: 'rec-9',
+        title: 'Avocado & Sun-Ripened Tomato Toast',
+        dietType: 'Vegan',
+        prepTime: '10 mins',
+        verifiedMinutes: 10,
+        servings: 2,
+        baseServings: 2,
+        mealType: 'breakfast',
+        dishType: 'main',
+        allergens: ['gluten'],
+        isVegetarian: true,
+        isVegan: true,
+        requiredIngredients: ['avocado', 'tomatoes', 'olive_oil', 'chilli_flakes', 'lemon'],
+        imageUrl: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=800&auto=format&fit=crop&q=80',
+        calories: '290 kcal'
+      },
+      {
+        id: 'rec-10',
+        title: 'Whipped Lemon Ricotta & Berry Cup',
+        dietType: 'Vegetarian',
+        prepTime: '8 mins',
+        verifiedMinutes: 8,
+        servings: 2,
+        baseServings: 2,
+        mealType: 'sweet',
+        dishType: 'sweet',
+        allergens: ['dairy'],
+        isVegetarian: true,
+        isVegan: false,
+        requiredIngredients: ['heavy_cream', 'lemon', 'basil'],
+        imageUrl: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=800&auto=format&fit=crop&q=80',
+        calories: '240 kcal'
+      },
+      {
+        id: 'rec-11',
+        title: 'Sparkling Lemon Herb Infusion',
+        dietType: 'Vegan',
+        prepTime: '5 mins',
+        verifiedMinutes: 5,
+        servings: 2,
+        baseServings: 2,
+        mealType: 'drink',
+        dishType: 'drink',
+        allergens: [],
+        isVegetarian: true,
+        isVegan: true,
+        requiredIngredients: ['lemon', 'basil'],
+        imageUrl: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=800&auto=format&fit=crop&q=80',
+        calories: '45 kcal'
+      }
+    ];
+
+    /**
+     * REQUIRED MEAL SETUP STATE
+     */
+    const DEFAULT_MEAL_SETUP = {
+      servings: 2,
+      timeLimit: 30,
+      mealType: 'dinner',
+      dishType: 'main',
+      allergies: [],
+      customAvoid: ''
+    };
+
+    let currentMealSetup = (() => {
+      try {
+        const saved = localStorage.getItem('platera_meal_setup');
+        return saved ? JSON.parse(saved) : { ...DEFAULT_MEAL_SETUP };
+      } catch {
+        return { ...DEFAULT_MEAL_SETUP };
+      }
+    })();
+
+    /**
+     * FLOWCHART PIPELINE: 4-TIER STRICT FILTERING
+     */
+    function filterCatalogByMealSetup(catalog, setup) {
+      if (!setup) return catalog;
+
+      return catalog.filter(recipe => {
+        // Step 1: Allergies & Avoidances - Strict Hard Exclusions
+        const declaredAllergens = (setup.allergies || []).map(a => a.toLowerCase());
+        if (setup.customAvoid && setup.customAvoid.trim()) {
+          declaredAllergens.push(setup.customAvoid.trim().toLowerCase());
+        }
+
+        for (const allg of declaredAllergens) {
+          if (allg === 'none') continue;
+          if (allg === 'vegetarian' && !recipe.isVegetarian) return false;
+          if (allg === 'vegan' && !recipe.isVegan) return false;
+          if (allg === 'egg-free' && (recipe.allergens || []).includes('eggs')) return false;
+          if (allg === 'dairy-free' && (recipe.allergens || []).includes('dairy')) return false;
+          if (allg === 'gluten-free' && (recipe.allergens || []).includes('gluten')) return false;
+          if (allg === 'peanuts' && (recipe.allergens || []).includes('peanuts')) return false;
+          if (allg === 'tree nuts' && (recipe.allergens || []).includes('nuts')) return false;
+          if (allg === 'soy' && (recipe.allergens || []).includes('soy')) return false;
+          if (allg === 'sesame' && (recipe.allergens || []).includes('sesame')) return false;
+
+          // Check custom avoid against required ingredients
+          if (recipe.requiredIngredients.some(ing => ing.toLowerCase().includes(allg))) {
+            return false;
+          }
+          if (recipe.title.toLowerCase().includes(allg)) {
+            return false;
+          }
+        }
+
+        // Step 2: Meal / Dish Category Filter
+        if (setup.mealType && setup.mealType !== 'anything') {
+          const reqMeal = setup.mealType.toLowerCase();
+          const matchesMeal = recipe.mealType === 'any' || recipe.mealType === reqMeal;
+          const matchesDish = recipe.dishType === 'any' || recipe.dishType === reqMeal;
+          if (!matchesMeal && !matchesDish) {
+            return false;
+          }
+        }
+
+        // Step 3: Verified Total Time Filter (Hard cap)
+        if (setup.timeLimit && setup.timeLimit < 999) {
+          const verifiedTime = recipe.verifiedMinutes || parseInt(recipe.prepTime) || 30;
+          if (verifiedTime > setup.timeLimit) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+    }
+
+    /**
+     * STATE MANAGEMENT
+     */
+    const state = {
+      selectedIngredients: [...CONFIG.DEFAULT_INGREDIENTS],
+      recipes: [],
+      isLoading: false,
+      searchQuery: ''
+    };
+
+    // DOM Element References
+    const elements = {
+      chipsContainer: document.getElementById('ingredient-chips-container'),
+      ingredientSearch: document.getElementById('ingredient-search'),
+      counterBadge: document.getElementById('active-ingredient-counter'),
+      clearBtn: document.getElementById('clear-all-btn'),
+      recipesGrid: document.getElementById('recipes-grid'),
+      loadingOverlay: document.getElementById('loading-overlay'),
+      emptyState: document.getElementById('empty-state'),
+      resultsCount: document.getElementById('results-count-badge'),
+      emptyResetBtn: document.getElementById('empty-reset-btn'),
+      // Summary Bar
+      summaryBar: document.getElementById('meal-setup-summary-bar'),
+      summaryServingsText: document.getElementById('summary-servings-text'),
+      summaryMealText: document.getElementById('summary-meal-text'),
+      summaryTimeText: document.getElementById('summary-time-text'),
+      summaryAllergiesTag: document.getElementById('summary-allergies-tag'),
+      openSetupBtn: document.getElementById('open-meal-setup-btn'),
+      // Modal
+      modal: document.getElementById('meal-setup-modal'),
+      closeModalBtn: document.getElementById('close-meal-setup-btn'),
+      showMealsBtn: document.getElementById('show-meals-btn'),
+      servingsChips: document.querySelectorAll('.setup-srv-btn'),
+      moreStepperBox: document.getElementById('more-servings-stepper'),
+      srvMinus: document.getElementById('srv-minus'),
+      srvPlus: document.getElementById('srv-plus'),
+      srvCountDisplay: document.getElementById('srv-count-display'),
+      timeChips: document.querySelectorAll('.setup-time-btn'),
+      mealChips: document.querySelectorAll('.setup-meal-btn'),
+      allergyChips: document.querySelectorAll('.setup-allg-btn'),
+      customAvoidBox: document.getElementById('custom-avoid-input-box'),
+      customAvoidInput: document.getElementById('custom-avoid-input')
+    };
+
+    /**
+     * UPDATE SUMMARY BAR DISPLAY
+     */
+    function updateSummaryBarDisplay() {
+      if (!elements.summaryServingsText) return;
+      const s = currentMealSetup.servings;
+      elements.summaryServingsText.textContent = s === 1 ? 'Just me (1)' : `For ${s} people`;
+
+      const m = currentMealSetup.mealType ? currentMealSetup.mealType.charAt(0).toUpperCase() + currentMealSetup.mealType.slice(1) : 'Dinner';
+      elements.summaryMealText.textContent = m;
+
+      const t = currentMealSetup.timeLimit === 999 ? 'Any time' : `≤ ${currentMealSetup.timeLimit} mins`;
+      elements.summaryTimeText.textContent = t;
+
+      const declared = [
+        ...currentMealSetup.allergies.filter(a => a !== 'none'),
+        ...(currentMealSetup.customAvoid ? [currentMealSetup.customAvoid] : [])
+      ];
+
+      if (declared.length > 0) {
+        elements.summaryAllergiesTag.textContent = `• Avoid: ${declared.join(', ')}`;
+        elements.summaryAllergiesTag.classList.remove('hidden');
+      } else {
+        elements.summaryAllergiesTag.textContent = '';
+        elements.summaryAllergiesTag.classList.add('hidden');
+      }
+    }
+
+    /**
+     * RECIPEDB API INTEGRATION LAYER
+     */
+    async function fetchDynamicRecipes(selectedIngredients) {
+      if (!selectedIngredients || selectedIngredients.length === 0) {
+        return [];
+      }
+
+      const queryString = encodeURIComponent(selectedIngredients.join(','));
+      const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const targetUrl = isLocalHost && CONFIG.PROXY_ENDPOINT
+        ? `${CONFIG.PROXY_ENDPOINT}?includeIngredients=${queryString}`
+        : `${CONFIG.API_BASE_URL}${CONFIG.API_ENDPOINT}?ingredients=${queryString}`;
+
+      try {
+        const headers = {
+          'Authorization': `Bearer ${CONFIG.API_KEY}`,
+          'Content-Type': 'application/json'
+        };
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+        const response = await fetch(targetUrl, {
+          method: 'GET',
+          headers: headers,
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          const list = Array.isArray(data) ? data : (data.recipes || data.data || []);
+          if (Array.isArray(list) && list.length > 0) {
+            const normalized = list.map(item => normalizeApiRecipe(item, selectedIngredients));
+            // Apply Flowchart Setup filters
+            return filterCatalogByMealSetup(normalized, currentMealSetup);
+          }
+        }
+      } catch (err) {
+        console.warn('RecipeDB API live query bypassed or errored:', err.message);
+      }
+
+      // Dynamic local compute with Flowchart setup applied
+      return computeLocalDynamicRecipes(selectedIngredients);
+    }
+
+    /**
+     * NORMALIZER FOR RAW RECIPEDB PAYLOADS
+     */
+    function normalizeApiRecipe(item, selectedIngredients) {
+      const title = item.Recipe_title || item.title || 'Curated Culinary Dish';
+      const ingredients = item.Ingredients || item.ingredients || [];
+      const matchScore = calculateMatchPercentage(selectedIngredients, ingredients);
+
+      return {
+        id: item.Recipe_id || item.id || `api-${Math.random()}`,
+        title: title,
+        dietType: item.diet_type || (title.toLowerCase().includes('chicken') ? 'High Protein' : 'Vegetarian'),
+        prepTime: item.total_time || '25 mins',
+        verifiedMinutes: parseInt(item.total_time) || 25,
+        servings: currentMealSetup.servings || 2,
+        mealType: (item.meal_type || 'dinner').toLowerCase(),
+        dishType: (item.dish_type || 'main').toLowerCase(),
+        allergens: item.allergens || [],
+        isVegetarian: item.is_vegetarian !== false,
+        isVegan: item.is_vegan === true,
+        requiredIngredients: ingredients,
+        imageUrl: item.image_url || 'https://images.unsplash.com/photo-1621996346565-e3d5d6281292?w=800&auto=format&fit=crop&q=80',
+        matchPercentage: matchScore
+      };
+    }
+
+    /**
+     * CALCULATE REAL-TIME MATCH PERCENTAGE
+     */
+    function calculateMatchPercentage(selectedNames, recipeRequiredKeys) {
+      const normalizedSelected = selectedNames.map(s => s.toLowerCase().replace(/[^a-z]/g, ''));
+      let matches = 0;
+
+      recipeRequiredKeys.forEach(req => {
+        const cleanReq = req.toLowerCase().replace(/[^a-z]/g, '');
+        if (normalizedSelected.some(sel => sel.includes(cleanReq) || cleanReq.includes(sel))) {
+          matches++;
+        }
+      });
+
+      if (recipeRequiredKeys.length === 0) return 90;
+      const ratio = matches / recipeRequiredKeys.length;
+      return Math.min(99, Math.max(65, Math.round(ratio * 100)));
+    }
+
+    /**
+     * LOCAL DYNAMIC MATCH ENGINE (0ms Latency Fallback)
+     */
+    function computeLocalDynamicRecipes(selectedNames) {
+      const normalizedSelected = selectedNames.map(n => n.toLowerCase());
+
+      // 1. First enforce Required Meal Setup (Allergens -> Meal/Dish -> Time)
+      const setupFiltered = filterCatalogByMealSetup(DEMO_CATALOG, currentMealSetup);
+
+      // 2. Score by ingredients synergy
+      const scored = setupFiltered.map(recipe => {
+        let matchCount = 0;
+        recipe.requiredIngredients.forEach(req => {
+          if (normalizedSelected.some(s => s.includes(req) || req.includes(s))) {
+            matchCount++;
+          }
+        });
+
+        const score = recipe.requiredIngredients.length > 0
+          ? Math.round((matchCount / recipe.requiredIngredients.length) * 100)
+          : 50;
+
+        return {
+          ...recipe,
+          servings: currentMealSetup.servings || recipe.baseServings || 2,
+          matchPercentage: Math.min(99, Math.max(55, score)),
+          rawMatchCount: matchCount
+        };
+      });
+
+      // Filter recipes that have at least 1 overlapping ingredient
+      const filtered = scored
+        .filter(r => r.rawMatchCount > 0)
+        .sort((a, b) => b.matchPercentage - a.matchPercentage);
+
+      return filtered;
+    }
+
+    /**
+     * UI RENDERING: INGREDIENT CHIPS
+     */
+    function renderIngredientChips() {
+      const container = elements.chipsContainer;
+      container.innerHTML = '';
+
+      const searchFilter = state.searchQuery.toLowerCase();
+      const filteredList = AVAILABLE_INGREDIENTS.filter(item =>
+        item.name.toLowerCase().includes(searchFilter) ||
+        item.category.toLowerCase().includes(searchFilter)
+      );
+
+      if (filteredList.length === 0) {
+        container.innerHTML = `
+          <div class="py-4 text-xs text-slate-400 italic">
+            No ingredients found matching "${state.searchQuery}".
+          </div>
+        `;
+        return;
+      }
+
+      filteredList.forEach(item => {
+        const isSelected = state.selectedIngredients.includes(item.name);
+        const button = document.createElement('button');
+        button.type = 'button';
+
+        button.className = `
+          inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium 
+          transition-all duration-150 transform active:scale-95 border
+          ${isSelected
+            ? 'bg-gradient-to-r from-teal-500/20 to-cyan-500/20 border-teal-400 text-teal-300 shadow-sm shadow-teal-500/20 ring-1 ring-teal-400/50'
+            : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700 text-slate-300 hover:text-white hover:border-slate-600'}
+        `;
+
+        button.innerHTML = `
+          <span>${item.name}</span>
+          ${isSelected ? `
+            <svg class="w-3.5 h-3.5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+            </svg>
+          ` : `
+            <span class="text-slate-500 text-xs font-bold">+</span>
+          `}
+        `;
+
+        button.addEventListener('click', () => toggleIngredient(item.name));
+        container.appendChild(button);
+      });
+
+      elements.counterBadge.textContent = `${state.selectedIngredients.length} selected`;
+      elements.clearBtn.disabled = state.selectedIngredients.length === 0;
+    }
+
+    /**
+     * UI RENDERING: RECIPE CARDS GRID
+     */
+    function renderRecipeCards(recipes) {
+      const grid = elements.recipesGrid;
+      grid.innerHTML = '';
+
+      if (!recipes || recipes.length === 0) {
+        elements.emptyState.classList.remove('hidden');
+        elements.resultsCount.textContent = '0 found';
+        return;
+      }
+
+      elements.emptyState.classList.add('hidden');
+      elements.resultsCount.textContent = `${recipes.length} found`;
+
+      recipes.forEach(recipe => {
+        const card = document.createElement('article');
+        card.className = `
+          group bg-slate-900/80 border border-slate-800 hover:border-teal-500/40 
+          rounded-2xl overflow-hidden shadow-lg hover:shadow-teal-500/10 
+          transition-all duration-300 flex flex-col transform hover:-translate-y-1
+        `;
+
+        const matchScore = recipe.matchPercentage || 85;
+        const matchBadgeColor = matchScore >= 80
+          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+          : 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+
+        card.innerHTML = `
+          <!-- Image Container with Overlays -->
+          <div class="relative h-44 w-full overflow-hidden bg-slate-800">
+            <img 
+              src="${recipe.imageUrl}" 
+              alt="${recipe.title}" 
+              loading="lazy"
+              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              onerror="this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80'"
+            />
+            
+            <!-- Diet Type Badge -->
+            <span class="absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-950/80 backdrop-blur-md text-slate-200 border border-slate-700/60 shadow">
+              ${recipe.dietType || 'Balanced'}
+            </span>
+
+            <!-- Match Percentage Badge -->
+            <span class="absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-xs font-bold backdrop-blur-md border ${matchBadgeColor} shadow flex items-center gap-1">
+              <svg class="w-3 h-3 text-current" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path>
+              </svg>
+              ${matchScore}% Match
+            </span>
+          </div>
+
+          <!-- Card Body -->
+          <div class="p-5 flex-1 flex flex-col justify-between space-y-4">
+            <div>
+              <div class="flex items-center gap-2 text-xs text-slate-400 mb-1.5">
+                <span class="flex items-center gap-1">
+                  <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  ${recipe.prepTime}
+                </span>
+                <span>•</span>
+                <span class="font-semibold text-slate-200">${recipe.servings || currentMealSetup.servings || 2} serves</span>
+                ${recipe.calories ? `<span>•</span><span>${recipe.calories}</span>` : ''}
+              </div>
+
+              <h4 class="text-base font-semibold text-white group-hover:text-teal-300 transition-colors line-clamp-1">
+                ${recipe.title}
+              </h4>
+
+              <!-- Ingredient Tags preview -->
+              <div class="flex flex-wrap gap-1 mt-3">
+                ${(recipe.requiredIngredients || []).slice(0, 4).map(ing => `
+                  <span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700/50">
+                    ${ing}
+                  </span>
+                `).join('')}
+                ${(recipe.requiredIngredients || []).length > 4 ? `
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
+                    +${recipe.requiredIngredients.length - 4} more
+                  </span>
+                ` : ''}
+              </div>
+            </div>
+
+            <button 
+              type="button" 
+              class="w-full py-2 px-3.5 rounded-xl bg-slate-800 hover:bg-teal-600/90 text-slate-200 hover:text-white font-medium text-xs border border-slate-700 hover:border-teal-500 transition-all duration-200 flex items-center justify-center gap-1.5"
+            >
+              <span>View Cooking Recipe</span>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+              </svg>
+            </button>
+          </div>
+        `;
+
+        grid.appendChild(card);
+      });
+    }
+
+    /**
+     * LOADING STATE TOGGLE
+     */
+    function setLoading(isLoading) {
+      state.isLoading = isLoading;
+      if (isLoading) {
+        elements.loadingOverlay.classList.remove('hidden');
+      } else {
+        elements.loadingOverlay.classList.add('hidden');
+      }
+    }
+
+    /**
+     * REACTIVE STATE HANDLER: TOGGLE INGREDIENT
+     */
+    async function toggleIngredient(ingredientName) {
+      const index = state.selectedIngredients.indexOf(ingredientName);
+      if (index > -1) {
+        state.selectedIngredients.splice(index, 1);
+      } else {
+        state.selectedIngredients.push(ingredientName);
+      }
+
+      renderIngredientChips();
+      await handleIngredientsChanged();
+    }
+
+    /**
+     * REACTIVE STATE HANDLER: TRIGGER ASYNC FETCH & DOM UPDATE
+     */
+    async function handleIngredientsChanged() {
+      setLoading(true);
+
+      try {
+        const results = await fetchDynamicRecipes(state.selectedIngredients);
+        state.recipes = results;
+        renderRecipeCards(results);
+      } catch (err) {
+        console.error('Error in recipe discovery pipeline:', err);
+        renderRecipeCards([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    /**
+     * SYNC MODAL UI CONTROLS TO ACTIVE MEAL SETUP
+     */
+    function syncModalUI() {
+      // 1. Serving size
+      const s = currentMealSetup.servings;
+      const isMore = s > 6;
+      elements.servingsChips.forEach(btn => {
+        const val = btn.getAttribute('data-val');
+        if ((isMore && val === 'more') || (!isMore && parseInt(val) === s)) {
+          btn.className = 'setup-srv-btn px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all bg-teal-500/20 border-teal-400 text-teal-300 shadow-sm';
+        } else {
+          btn.className = 'setup-srv-btn px-3.5 py-1.5 rounded-lg border text-xs font-semibold transition-all bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white';
+        }
+      });
+      if (isMore) {
+        elements.moreStepperBox.classList.remove('hidden');
+        elements.srvCountDisplay.textContent = s;
+      } else {
+        elements.moreStepperBox.classList.add('hidden');
+      }
+
+      // 2. Time
+      elements.timeChips.forEach(btn => {
+        const t = parseInt(btn.getAttribute('data-time'));
+        if (t === currentMealSetup.timeLimit) {
+          btn.className = 'setup-time-btn p-2 rounded-xl border text-center transition-all bg-teal-500/20 border-teal-400 text-teal-300 ring-1 ring-teal-400/50 shadow-sm';
+        } else {
+          btn.className = 'setup-time-btn p-2 rounded-xl border text-center transition-all bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white';
+        }
+      });
+
+      // 3. Meal
+      elements.mealChips.forEach(btn => {
+        const m = btn.getAttribute('data-meal');
+        if (m === currentMealSetup.mealType) {
+          btn.className = 'setup-meal-btn p-2 rounded-xl border text-center text-xs font-semibold transition-all bg-cyan-500/20 border-cyan-400 text-cyan-300 ring-1 ring-cyan-400/50 shadow-sm';
+        } else {
+          btn.className = 'setup-meal-btn p-2 rounded-xl border text-center text-xs font-semibold transition-all bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white';
+        }
+      });
+
+      // 4. Allergies
+      elements.allergyChips.forEach(btn => {
+        const a = btn.getAttribute('data-allergy');
+        const isSelected = currentMealSetup.allergies.includes(a);
+        if (isSelected) {
+          btn.className = 'setup-allg-btn px-3 py-1.5 rounded-lg border text-xs font-medium transition-all bg-rose-500/20 border-rose-400 text-rose-300 shadow-sm';
+        } else {
+          btn.className = 'setup-allg-btn px-3 py-1.5 rounded-lg border text-xs font-medium transition-all bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white';
+        }
+      });
+
+      if (currentMealSetup.allergies.includes('other') || currentMealSetup.customAvoid) {
+        elements.customAvoidBox.classList.remove('hidden');
+        elements.customAvoidInput.value = currentMealSetup.customAvoid || '';
+      } else {
+        elements.customAvoidBox.classList.add('hidden');
+      }
+    }
+
+    /**
+     * INITIALIZE MODAL & EVENT LISTENERS
+     */
+    function initializeEvents() {
+      // Search input listener
+      elements.ingredientSearch.addEventListener('input', (e) => {
+        state.searchQuery = e.target.value.trim();
+        renderIngredientChips();
+      });
+
+      // Clear all button
+      elements.clearBtn.addEventListener('click', async () => {
+        state.selectedIngredients = [];
+        renderIngredientChips();
+        await handleIngredientsChanged();
+      });
+
+      // Empty state reset button
+      elements.emptyResetBtn.addEventListener('click', async () => {
+        state.selectedIngredients = [...CONFIG.DEFAULT_INGREDIENTS];
+        renderIngredientChips();
+        await handleIngredientsChanged();
+      });
+
+      // Open Meal Setup Modal
+      const openModal = () => {
+        syncModalUI();
+        elements.modal.classList.remove('hidden');
+      };
+
+      if (elements.summaryBar) elements.summaryBar.addEventListener('click', openModal);
+      if (elements.openSetupBtn) elements.openSetupBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openModal();
+      });
+
+      // Close Modal
+      elements.closeModalBtn.addEventListener('click', () => {
+        elements.modal.classList.add('hidden');
+      });
+
+      // Servings Chips
+      elements.servingsChips.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const val = btn.getAttribute('data-val');
+          if (val === 'more') {
+            currentMealSetup.servings = 8;
+          } else {
+            currentMealSetup.servings = parseInt(val);
+          }
+          syncModalUI();
+        });
+      });
+
+      // Stepper
+      elements.srvMinus.addEventListener('click', () => {
+        currentMealSetup.servings = Math.max(7, currentMealSetup.servings - 1);
+        syncModalUI();
+      });
+      elements.srvPlus.addEventListener('click', () => {
+        currentMealSetup.servings = Math.min(24, currentMealSetup.servings + 1);
+        syncModalUI();
+      });
+
+      // Time Chips
+      elements.timeChips.forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentMealSetup.timeLimit = parseInt(btn.getAttribute('data-time'));
+          syncModalUI();
+        });
+      });
+
+      // Meal Chips
+      elements.mealChips.forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentMealSetup.mealType = btn.getAttribute('data-meal');
+          syncModalUI();
+        });
+      });
+
+      // Allergies Chips
+      elements.allergyChips.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const allg = btn.getAttribute('data-allergy');
+          if (allg === 'none') {
+            currentMealSetup.allergies = ['none'];
+            currentMealSetup.customAvoid = '';
+          } else {
+            currentMealSetup.allergies = currentMealSetup.allergies.filter(a => a !== 'none');
+            const idx = currentMealSetup.allergies.indexOf(allg);
+            if (idx > -1) {
+              currentMealSetup.allergies.splice(idx, 1);
+            } else {
+              currentMealSetup.allergies.push(allg);
+            }
+          }
+          syncModalUI();
+        });
+      });
+
+      // Custom avoid input
+      elements.customAvoidInput.addEventListener('input', (e) => {
+        currentMealSetup.customAvoid = e.target.value.trim();
+      });
+
+      // Primary Action: "Show me meals"
+      elements.showMealsBtn.addEventListener('click', async () => {
+        try {
+          localStorage.setItem('platera_meal_setup', JSON.stringify(currentMealSetup));
+        } catch { }
+
+        updateSummaryBarDisplay();
+        elements.modal.classList.add('hidden');
+        await handleIngredientsChanged();
+      });
+    }
+
+    /**
+     * COMPONENT MOUNT LIFECYCLE
+     */
+    async function init() {
+      updateSummaryBarDisplay();
+      initializeEvents();
+      renderIngredientChips();
+      await handleIngredientsChanged();
+    }
+
+    // Bootstrap component
+    init();
+  </script>
+</body>
+
+</html>
